@@ -1,0 +1,3 @@
+[test]
+coverageReporter = ["text"]
+coverageThreshold = 1
