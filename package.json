@@ -1,36 +1,54 @@
 {
   "name": "@qexle/seo-mcp",
-  "version": "0.1.1",
-  "description": "MCP server for Ahrefs free-tool data: backlinks, keyword research, keyword difficulty, and traffic estimation.",
+  "mcpName": "io.github.1QEXLE/seo-mcp",
+  "version": "0.3.0",
+  "description": "Keyless SEO radar MCP: live trends, keyword demand, SERP composition and on-page audits. No API keys required.",
   "type": "module",
   "keywords": [
     "mcp",
+    "mcp-server",
     "seo",
-    "ahrefs",
-    "capsolver",
+    "seo-tools",
+    "keyless",
+    "trends",
+    "keyword-research",
+    "technical-audit",
     "backlinks",
-    "keyword-research"
+    "ahrefs",
+    "capsolver"
   ],
   "license": "MIT",
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun",
     "prepack": "bun run build",
+    "prepublishOnly": "bun test && bun run typecheck",
     "test": "bun test --coverage",
     "typecheck": "bunx tsc --noEmit"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "bin": {
     "seo-mcp": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "docs/demo.gif",
+    "docs/hero.png",
+    "index.html",
+    "server.json",
+    "skills",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "bun": ">=1.3.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "2.0.0"
+    "@modelcontextprotocol/server": "2.4.0"
   },
   "devDependencies": {
-    "@types/bun": "1.3.14"
+    "@types/bun": "1.4.4"
   }
 }

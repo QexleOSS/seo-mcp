@@ -1,3 +1,7 @@
 [test]
 coverageReporter = ["text"]
 coverageThreshold = 1
+# The entry file only wires the arguments into runCli, and a test can never be
+# the main module, so its two lines stay out of the report. The behaviour is
+# checked by running the built command in a child process.
+coveragePathIgnorePatterns = ["**/src/index.ts"]

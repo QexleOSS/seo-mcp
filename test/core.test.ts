@@ -26,14 +26,10 @@ import { checkTraffic } from "../src/traffic.ts";
 process.env.CAPSOLVER_API_KEY = "test-key";
 const {
   getBacklinksList,
-  getBacklinksTool,
   getCapsolverToken,
   getTraffic,
-  getTrafficTool,
   keywordDifficulty,
   keywordGenerator,
-  keywordDifficultyTool,
-  keywordGeneratorTool,
   main,
   mcp,
   toolResult,
@@ -539,26 +535,6 @@ describe("MCP server wrappers", () => {
     await expect(keywordDifficulty("seo")).rejects.toThrow(
       "Failed to get verification token",
     );
-    await expect(getBacklinksTool({ domain: "example.com" })).rejects.toThrow(
-      "Failed to get verification token",
-    );
-    await expect(
-      keywordGeneratorTool({
-        keyword: "seo",
-        country: "us",
-        search_engine: "Google",
-      }),
-    ).rejects.toThrow("Failed to get verification token");
-    await expect(
-      getTrafficTool({
-        domain_or_url: "example.com",
-        country: "None",
-        mode: "subdomains",
-      }),
-    ).rejects.toThrow("Failed to get verification token");
-    await expect(
-      keywordDifficultyTool({ keyword: "seo", country: "us" }),
-    ).rejects.toThrow("Failed to get verification token");
     process.env.CAPSOLVER_API_KEY = "test-key";
   });
 

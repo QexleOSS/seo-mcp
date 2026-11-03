@@ -1,0 +1,1090 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SEO Radar MCP: live search-market telemetry for agents</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23101a1f'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%230d6b6b' stroke-width='2'/%3E%3Cpath d='M16 16 L23 10' stroke='%23d1342b' stroke-width='2.5' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23d1342b'/%3E%3C/svg%3E"
+    />
+    <meta
+      name="description"
+      content="An MCP server that reads Google Trends, autocomplete, live result pages and page audits. No API key needed."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Martian+Mono:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper: #e7eaec;
+        --paper-deep: #dfe3e6;
+        --grid: #c3ced4;
+        --grid-soft: #d3dade;
+        --ink: #10161a;
+        --ink-soft: #3c4a52;
+        --ink-faint: #4f5f68;
+        --trace: #b52a22;
+        --model: #0d6b6b;
+        --band: #121a1f;
+        --band-ink: #e8edf0;
+        --rule: rgba(16, 22, 26, 0.18);
+        --sans: "Archivo", "Helvetica Neue", sans-serif;
+        --mono: "Martian Mono", ui-monospace, monospace;
+        --gutter: clamp(1.1rem, 4vw, 3.5rem);
+        --measure: 74ch;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background-color: var(--paper);
+        background-image:
+          linear-gradient(to right, var(--grid-soft) 1px, transparent 1px),
+          linear-gradient(to bottom, var(--grid-soft) 1px, transparent 1px);
+        background-size: 28px 28px;
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);
+        line-height: 1.62;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 var(--gutter);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--trace);
+        outline-offset: 3px;
+      }
+
+      ::selection {
+        background: rgba(181, 42, 34, 0.18);
+      }
+
+      .mono {
+        font-family: var(--mono);
+        font-weight: 300;
+        letter-spacing: 0.02em;
+      }
+
+      .label {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 400;
+        letter-spacing: 0.05em;
+        text-transform: lowercase;
+        color: var(--ink-faint);
+      }
+
+      /* ---------- masthead ---------- */
+
+      .masthead {
+        border-bottom: 1px solid var(--rule);
+        background: rgba(231, 234, 236, 0.82);
+        backdrop-filter: blur(6px);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+
+      .masthead-inner {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.7rem 0;
+        flex-wrap: wrap;
+      }
+
+      .wordmark {
+        font-family: var(--sans);
+        font-weight: 800;
+        font-stretch: 125%;
+        font-size: 1.12rem;
+        letter-spacing: 0.01em;
+        text-decoration: none;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+
+      .wordmark span {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 400;
+        letter-spacing: 0.05em;
+        color: var(--ink-faint);
+      }
+
+      .status {
+        margin-left: auto;
+        display: flex;
+        gap: 1.1rem;
+        align-items: center;
+        font-size: 0.76rem;
+        color: var(--ink-soft);
+        flex-wrap: wrap;
+      }
+
+      .status b {
+        font-weight: 400;
+        color: var(--ink);
+      }
+
+      .blip {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--trace);
+        margin-right: 0.4rem;
+      }
+
+      /* ---------- hero ---------- */
+
+      .hero {
+        padding: clamp(2.5rem, 7vw, 5rem) 0 0;
+      }
+
+      .hero h1 {
+        font-family: var(--sans);
+        font-stretch: 118%;
+        font-weight: 800;
+        font-size: clamp(2.6rem, 1.4rem + 5.2vw, 5.4rem);
+        line-height: 0.95;
+        letter-spacing: -0.025em;
+        margin: 0 0 1.4rem;
+        max-width: 20ch;
+      }
+
+      .hero h1 em {
+        font-style: normal;
+        color: var(--trace);
+      }
+
+      .lede {
+        max-width: 58ch;
+        font-size: 1.09rem;
+        color: var(--ink-soft);
+      }
+
+      .lede strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 2.4rem;
+        margin-top: 2rem;
+        padding-top: 1.1rem;
+        border-top: 1px solid var(--rule);
+      }
+
+      .hero-meta div {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+
+      .hero-meta b {
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        font-weight: 400;
+      }
+
+      /* ---------- plot ---------- */
+
+      .plot {
+        margin: clamp(2rem, 5vw, 3.4rem) 0 0;
+        border: 1px solid var(--rule);
+        background: linear-gradient(180deg, #eef1f2, var(--paper-deep));
+        padding: 1.1rem 1.2rem 0.9rem;
+        position: relative;
+      }
+
+      .plot-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.5rem;
+      }
+
+      .plot svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+
+      .plot-axis {
+        position: relative;
+        height: 1.2rem;
+        margin-top: 0.4rem;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 300;
+        color: var(--ink-faint);
+      }
+
+      .plot-axis span {
+        position: absolute;
+        top: 0;
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+
+      .plot-axis span:nth-child(1) {
+        left: 0;
+        transform: none;
+      }
+
+      .plot-axis span:nth-child(2) {
+        left: 20%;
+      }
+
+      .plot-axis span:nth-child(3) {
+        left: 40%;
+      }
+
+      .plot-axis span:nth-child(4) {
+        left: 60%;
+      }
+
+      .plot-axis span:nth-child(5) {
+        left: 80%;
+      }
+
+      .plot-axis span:nth-child(6) {
+        left: 100%;
+        transform: translateX(-100%);
+      }
+
+      .plot-foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        border-top: 1px solid var(--rule);
+        padding-top: 0.55rem;
+        margin-top: 0.6rem;
+        font-size: 0.76rem;
+        color: var(--ink-faint);
+      }
+
+      .trace-line {
+        stroke-dasharray: 2400;
+        stroke-dashoffset: 2400;
+        animation: draw 2.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+
+      @keyframes draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+
+      .trace-fill {
+        fill-opacity: 0;
+        animation: fade 1.4s ease-out 1.5s forwards;
+      }
+
+      @keyframes fade {
+        to {
+          fill-opacity: 0.1;
+        }
+      }
+
+      /* ---------- sections ---------- */
+
+      section {
+        padding: clamp(2.6rem, 6vw, 4.4rem) 0 0;
+      }
+
+      h2 {
+        font-family: var(--sans);
+        font-stretch: 112%;
+        font-weight: 700;
+        font-size: clamp(1.45rem, 1.1rem + 1.1vw, 2.05rem);
+        letter-spacing: -0.015em;
+        margin: 0 0 0.4rem;
+      }
+
+      .sub {
+        color: var(--ink-soft);
+        max-width: var(--measure);
+        margin: 0 0 1.8rem;
+      }
+
+      /* ---------- ledger ---------- */
+
+      .ledger {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.94rem;
+      }
+
+      .ledger th {
+        text-align: left;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 400;
+        letter-spacing: 0.05em;
+        color: var(--ink-faint);
+        padding: 0 0.9rem 0.55rem 0;
+        border-bottom: 1px solid var(--rule);
+        text-transform: lowercase;
+      }
+
+      .ledger td {
+        padding: 0.85rem 0.9rem 0.85rem 0;
+        border-bottom: 1px solid var(--rule);
+        vertical-align: top;
+      }
+
+      .ledger td:first-child {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        font-weight: 400;
+        white-space: nowrap;
+      }
+
+      .ledger td:nth-child(2),
+      .ledger th:nth-child(2) {
+        padding-right: 2.4rem;
+        white-space: nowrap;
+      }
+
+      .ledger .what {
+        color: var(--ink-soft);
+      }
+
+      .tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+        padding: 0.12rem 0.45rem;
+        border: 1px solid var(--rule);
+        color: var(--ink-soft);
+      }
+
+      .tag.measured {
+        border-color: var(--trace);
+        color: var(--trace);
+      }
+
+      .tag.model {
+        border-color: var(--model);
+        color: var(--model);
+      }
+
+      /* ---------- receipts ---------- */
+
+      .receipts {
+        display: grid;
+        gap: 1.1rem;
+      }
+
+      .receipt {
+        border: 1px solid var(--rule);
+        background: #f1f3f4;
+        overflow: hidden;
+      }
+
+      .receipt-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1rem;
+        padding: 0.55rem 0.9rem;
+        border-bottom: 1px solid var(--rule);
+        background: var(--paper-deep);
+        flex-wrap: wrap;
+      }
+
+      .receipt-head b {
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        font-weight: 400;
+      }
+
+      .receipt pre {
+        margin: 0;
+        padding: 0.9rem;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        line-height: 1.7;
+        color: var(--ink-soft);
+        font-weight: 300;
+      }
+
+      .receipt pre .k {
+        color: var(--ink);
+      }
+
+      .receipt pre .v {
+        color: var(--model);
+      }
+
+      .receipt pre .s {
+        color: var(--trace);
+      }
+
+      /* ---------- limits ---------- */
+
+      .limits {
+        border: 1px solid var(--rule);
+        background: var(--paper-deep);
+        padding: 1.4rem 1.5rem;
+        display: grid;
+        gap: 1.05rem;
+        max-width: var(--measure);
+      }
+
+      .limits p {
+        margin: 0;
+        color: var(--ink-soft);
+      }
+
+      .limits p b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* ---------- install ---------- */
+
+      .band {
+        margin-top: clamp(2.6rem, 6vw, 4rem);
+        background: var(--band);
+        color: var(--band-ink);
+        padding: clamp(2rem, 5vw, 3.2rem) 0;
+      }
+
+      .band h2 {
+        color: var(--band-ink);
+      }
+
+      .band .sub {
+        color: rgba(232, 237, 240, 0.66);
+      }
+
+      .cmd {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        border: 1px solid rgba(232, 237, 240, 0.24);
+        padding: 0.75rem 0.75rem 0.75rem 1rem;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        font-weight: 300;
+        overflow-x: auto;
+      }
+
+      .cmd .caret {
+        color: var(--trace);
+      }
+
+      .cmd button {
+        margin-left: auto;
+        background: transparent;
+        border: 1px solid rgba(232, 237, 240, 0.3);
+        color: var(--band-ink);
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+        min-height: 2.25rem;
+        padding: 0.4rem 0.9rem;
+        cursor: pointer;
+        transition: background 120ms ease-out;
+      }
+
+      .cmd button:hover {
+        background: rgba(232, 237, 240, 0.1);
+      }
+
+      .cmd button:active {
+        background: rgba(232, 237, 240, 0.18);
+      }
+
+      .clients {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1px;
+        background: rgba(232, 237, 240, 0.2);
+        border: 1px solid rgba(232, 237, 240, 0.2);
+        margin-top: 1.4rem;
+      }
+
+      .client {
+        background: var(--band);
+        padding: 1.1rem 1.2rem 1.3rem;
+      }
+
+      .client h3 {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 400;
+        letter-spacing: 0.05em;
+        margin: 0 0 0.7rem;
+        color: rgba(232, 237, 240, 0.72);
+      }
+
+      .client pre {
+        margin: 0;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        line-height: 1.65;
+        font-weight: 300;
+        color: var(--band-ink);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      /* ---------- sources ---------- */
+
+      .sources {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+
+      .sources td {
+        padding: 0.6rem 1rem 0.6rem 0;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .sources td:first-child {
+        font-family: var(--mono);
+        font-size: 0.76rem;
+        white-space: nowrap;
+      }
+
+      .sources td:nth-child(2) {
+        color: var(--ink-soft);
+      }
+
+      .sources td:last-child {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        color: var(--ink-faint);
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      footer {
+        margin-top: clamp(2.6rem, 6vw, 4rem);
+        border-top: 1px solid var(--rule);
+        padding: 1.4rem 0 2.6rem;
+        display: flex;
+        gap: 1.2rem;
+        flex-wrap: wrap;
+        font-size: 0.8rem;
+        color: var(--ink-faint);
+      }
+
+      footer a {
+        color: var(--ink-soft);
+      }
+
+      @media (max-width: 640px) {
+        .ledger thead {
+          display: none;
+        }
+        .ledger tr {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 0.15rem 0.8rem;
+          padding: 0.85rem 0;
+          border-bottom: 1px solid var(--rule);
+        }
+        .ledger td {
+          border: 0;
+          padding: 0;
+        }
+        .ledger td.what {
+          grid-column: 1 / -1;
+          grid-row: 2;
+          max-width: 44ch;
+        }
+        .ledger td:nth-child(2) {
+          grid-row: 1;
+          grid-column: 2;
+          justify-self: end;
+        }
+        .status {
+          width: 100%;
+          margin-left: 0;
+        }
+        .plot-axis {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.15rem 0.6rem;
+          height: auto;
+        }
+        .plot-axis span,
+        .plot-axis span:nth-child(6) {
+          position: static;
+          transform: none;
+        }
+        .sources td {
+          padding-right: 0.75rem;
+        }
+        .sources td:first-child,
+        .sources td:last-child {
+          white-space: normal;
+        }
+        .cmd button {
+          min-height: 2.75rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        .trace-line {
+          stroke-dashoffset: 0;
+          animation: none;
+        }
+        .trace-fill {
+          fill-opacity: 0.1;
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="wrap masthead-inner">
+        <a class="wordmark" href="#top">SEO Radar <span>MCP</span></a>
+        <div class="status mono">
+          <span><span class="blip"></span><b>9</b> endpoints live</span>
+          <span><b>0</b> keys</span>
+          <span><b>MIT</b></span>
+        </div>
+      </div>
+    </header>
+
+    <main id="top">
+      <div class="wrap">
+        <section class="hero">
+          <h1>The search market, plotted live.</h1>
+          <p class="lede">
+            An MCP server that reads what people type, what they click and what
+            the page behind the result looks like. Trends, autocomplete, result
+            pages and page audits, all read at request time. Each answer carries
+            the name of its source, so an agent cannot quote an estimate as a
+            measurement.
+          </p>
+
+          <div class="hero-meta">
+            <div>
+              <span class="label">endpoints</span>
+              <b>9 public</b>
+            </div>
+            <div>
+              <span class="label">tools</span>
+              <b>6 live, 3 aliases</b>
+            </div>
+            <div>
+              <span class="label">key</span>
+              <b>none</b>
+            </div>
+            <div>
+              <span class="label">install</span>
+              <b class="mono">bunx @qexle/seo-mcp@0.3.0</b>
+            </div>
+          </div>
+
+          <div class="plot">
+            <div class="plot-head">
+              <span class="label">signal trace, schematic</span>
+              <span class="label">21 oct 2026 · 04:44 utc</span>
+            </div>
+            <svg
+              viewBox="0 0 1000 232"
+              role="img"
+              aria-label="Stylised signal trace of the nine public endpoints the server reads"
+            >
+              <g stroke="var(--grid)" stroke-width="1">
+                <line x1="0" y1="40" x2="1000" y2="40" />
+                <line x1="0" y1="90" x2="1000" y2="90" />
+                <line x1="0" y1="140" x2="1000" y2="140" />
+                <line x1="0" y1="190" x2="1000" y2="190" />
+                <line x1="200" y1="0" x2="200" y2="230" />
+                <line x1="400" y1="0" x2="400" y2="230" />
+                <line x1="600" y1="0" x2="600" y2="230" />
+                <line x1="800" y1="0" x2="800" y2="230" />
+              </g>
+
+              <g transform="translate(0,-26)">
+                <path
+                  class="trace-fill"
+                  d="M0 143 L10 140 L20 139 L30 128 L40 122 L50 113 L60 107 L70 102 L80 102 L90 102 L100 102 L110 108 L120 164 L130 94 L140 97 L150 101 L160 101 L170 104 L180 113 L190 102 L200 126 L210 105 L220 109 L230 111 L240 145 L250 94 L260 99 L270 152 L280 96 L290 154 L300 97 L310 95 L320 108 L330 115 L340 112 L350 124 L360 130 L370 137 L380 138 L390 209 L400 150 L410 148 L420 154 L430 144 L440 148 L450 139 L460 195 L470 139 L480 135 L490 162 L500 118 L510 128 L520 175 L530 128 L540 118 L550 111 L560 123 L570 117 L580 120 L590 130 L600 136 L610 131 L620 130 L630 123 L640 127 L650 121 L660 131 L670 138 L680 140 L690 132 L700 124 L710 163 L720 121 L730 127 L740 122 L750 129 L760 134 L770 138 L780 136 L790 143 L800 143 L810 138 L820 209 L830 162 L840 168 L850 168 L860 171 L870 178 L880 181 L890 184 L900 192 L910 188 L920 194 L930 199 L940 190 L950 185 L960 179 L970 189 L980 190 L990 196 L1000 218 L1000 230 L0 230 Z"
+                  fill="var(--trace)"
+                />
+
+                <path
+                  class="trace-line"
+                  d="M0 143 L10 140 L20 139 L30 128 L40 122 L50 113 L60 107 L70 102 L80 102 L90 102 L100 102 L110 108 L120 164 L130 94 L140 97 L150 101 L160 101 L170 104 L180 113 L190 102 L200 126 L210 105 L220 109 L230 111 L240 145 L250 94 L260 99 L270 152 L280 96 L290 154 L300 97 L310 95 L320 108 L330 115 L340 112 L350 124 L360 130 L370 137 L380 138 L390 209 L400 150 L410 148 L420 154 L430 144 L440 148 L450 139 L460 195 L470 139 L480 135 L490 162 L500 118 L510 128 L520 175 L530 128 L540 118 L550 111 L560 123 L570 117 L580 120 L590 130 L600 136 L610 131 L620 130 L630 123 L640 127 L650 121 L660 131 L670 138 L680 140 L690 132 L700 124 L710 163 L720 121 L730 127 L740 122 L750 129 L760 134 L770 138 L780 136 L790 143 L800 143 L810 138 L820 209 L830 162 L840 168 L850 168 L860 171 L870 178 L880 181 L890 184 L900 192 L910 188 L920 194 L930 199 L940 190 L950 185 L960 179 L970 189 L980 190 L990 196 L1000 218"
+                  fill="none"
+                  stroke="var(--trace)"
+                  stroke-width="1.4"
+                  stroke-linejoin="round"
+                />
+
+                <g class="now-dot" fill="var(--trace)">
+                  <circle cx="1000" cy="218" r="5" />
+                </g>
+              </g>
+            </svg>
+            <div class="plot-axis">
+              <span>google suggest</span>
+              <span>bing</span>
+              <span>duckduckgo</span>
+              <span>trends</span>
+              <span>wikipedia</span>
+              <span>now</span>
+            </div>
+            <div class="plot-foot">
+              <span
+                >each source carries a deadline; the server skips a stalled
+                endpoint and reports it silent</span
+              >
+              <span
+                >the first request includes dns and tls, so warm answers land in
+                seconds</span
+              >
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>What the agent gets</h2>
+          <p class="sub">
+            Six tools, each answering a question a writer or a growth team asks
+            in a normal week. None needs an account or a key.
+          </p>
+
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>tool</th>
+                <th>evidence</th>
+                <th>question it answers</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>get_trending</td>
+                <td><span class="tag measured">trends</span></td>
+                <td class="what">
+                  What people are searching for right now, filtered to a niche
+                </td>
+              </tr>
+              <tr>
+                <td>get_keyword_research</td>
+                <td><span class="tag measured">autocomplete</span></td>
+                <td class="what">
+                  Which keyword candidates are real, and the slot each one holds
+                </td>
+              </tr>
+              <tr>
+                <td>get_serp_snapshot</td>
+                <td><span class="tag measured">serp</span></td>
+                <td class="what">
+                  Who ranks today, the news pack beside them, how contested the
+                  term is
+                </td>
+              </tr>
+              <tr>
+                <td>get_technical_audit</td>
+                <td><span class="tag measured">http</span></td>
+                <td class="what">
+                  What is wrong with the page in front of a crawler
+                </td>
+              </tr>
+              <tr>
+                <td>get_backlinks</td>
+                <td><span class="tag model">estimate</span></td>
+                <td class="what">
+                  Which pages link to the domain, confirmed by reading them
+                </td>
+              </tr>
+              <tr>
+                <td>get_traffic</td>
+                <td><span class="tag model">estimate</span></td>
+                <td class="what">
+                  Referring domains, confirmed backlinks, the pages the engine
+                  shows
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h2>Receipts</h2>
+          <p class="sub">
+            I captured these from a cold process on 21 October 2026, then
+            trimmed the keyword and result page receipts for length.
+          </p>
+
+          <div class="receipts">
+            <div class="receipt">
+              <div class="receipt-head">
+                <b>get_keyword_research</b>
+                <span class="label">12.7 s · seed: technical seo audit</span>
+              </div>
+              <pre>{
+  <span class="k">"candidates"</span>: [
+    { <span class="k">"keyword"</span>: <span class="s">"technical seo audit"</span>, <span class="k">"autocomplete_rank"</span>: <span class="v">1</span>,
+      <span class="k">"engines"</span>: [<span class="s">"google"</span>, <span class="s">"bing"</span>, <span class="s">"duckduckgo"</span>], <span class="k">"intent"</span>: <span class="s">"informational"</span> },
+    { <span class="k">"keyword"</span>: <span class="s">"technical seo audit checklist"</span>, <span class="k">"autocomplete_rank"</span>: <span class="v">2</span>,
+      <span class="k">"engines"</span>: [<span class="s">"google"</span>, <span class="s">"bing"</span>, <span class="s">"duckduckgo"</span>], <span class="k">"intent"</span>: <span class="s">"informational"</span> },
+    { <span class="k">"keyword"</span>: <span class="s">"technical seo audit software"</span>, <span class="k">"autocomplete_rank"</span>: <span class="v">2</span>,
+      <span class="k">"engines"</span>: [<span class="s">"bing"</span>, <span class="s">"duckduckgo"</span>], <span class="k">"intent"</span>: <span class="s">"commercial"</span> }
+  ],
+  <span class="k">"engines_answered"</span>: [<span class="s">"google"</span>, <span class="s">"bing"</span>, <span class="s">"duckduckgo"</span>],
+  <span class="k">"engines_silent"</span>: [],
+  <span class="k">"source"</span>: <span class="s">"autocomplete"</span>
+}</pre>
+            </div>
+
+            <div class="receipt">
+              <div class="receipt-head">
+                <b>get_serp_snapshot</b>
+                <span class="label">15.0 s · keyword: running shoes</span>
+              </div>
+              <pre>{
+  <span class="k">"results"</span>: [
+    { <span class="k">"position"</span>: <span class="v">1</span>, <span class="k">"title"</span>: <span class="s">"Running - Wikipedia"</span>, <span class="k">"domain"</span>: <span class="s">"en.wikipedia.org"</span> },
+    { <span class="k">"position"</span>: <span class="v">2</span>, <span class="k">"title"</span>: <span class="s">"Runner's World"</span>, <span class="k">"domain"</span>: <span class="s">"runnersworld.com"</span> }
+  ],
+  <span class="k">"difficulty_estimate"</span>: {
+    <span class="k">"score"</span>: <span class="v">13</span>, <span class="k">"method"</span>: <span class="s">"serp_composition"</span>, <span class="k">"confidence"</span>: <span class="s">"low"</span>,
+    <span class="k">"components"</span>: { <span class="k">"authority_share"</span>: <span class="v">0.25</span>, <span class="k">"distinct_domains"</span>: <span class="v">4</span>, <span class="k">"results"</span>: <span class="v">4</span> }
+  },
+  <span class="k">"source"</span>: <span class="s">"serp"</span>
+}</pre>
+            </div>
+
+            <div class="receipt">
+              <div class="receipt-head">
+                <b>get_technical_audit</b>
+                <span class="label">7.5 s · https://example.com</span>
+              </div>
+              <pre>{
+  <span class="k">"status"</span>: <span class="v">200</span>, <span class="k">"https"</span>: <span class="v">true</span>, <span class="k">"response_ms"</span>: <span class="v">7531</span>,
+  <span class="k">"title"</span>: <span class="s">"Example Domain"</span>, <span class="k">"word_count"</span>: <span class="v">25</span>,
+  <span class="k">"checks"</span>: [
+    { <span class="k">"name"</span>: <span class="s">"title"</span>,           <span class="k">"status"</span>: <span class="s">"pass"</span>, <span class="k">"detail"</span>: <span class="s">"title is 14 characters"</span> },
+    { <span class="k">"name"</span>: <span class="s">"meta_description"</span>, <span class="k">"status"</span>: <span class="s">"fail"</span>, <span class="k">"detail"</span>: <span class="s">"meta description is 0 characters"</span> },
+    { <span class="k">"name"</span>: <span class="s">"canonical"</span>,        <span class="k">"status"</span>: <span class="s">"warn"</span>, <span class="k">"detail"</span>: <span class="s">"no canonical link found"</span> },
+    { <span class="k">"name"</span>: <span class="s">"h1"</span>,                <span class="k">"status"</span>: <span class="s">"fail"</span>, <span class="k">"detail"</span>: <span class="s">"0 h1 headings"</span> }
+  ],
+  <span class="k">"score"</span>: <span class="v">42</span>,
+  <span class="k">"source"</span>: <span class="s">"http"</span>
+}</pre>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>What the keyless path cannot give you</h2>
+          <p class="sub">
+            The server prints these limits so an agent does not quote a number
+            it cannot back up.
+          </p>
+          <div class="limits">
+            <p>
+              <b>Monthly search volume stays out.</b> It needs clickstream and
+              advertising data that no public endpoint exposes. The autocomplete
+              position takes its place: a real measure of how strongly people
+              type a term.
+            </p>
+            <p>
+              <b>The backlink index is a sample.</b> The keyless path finds
+              pages that mention the domain and confirms each link by fetching
+              the page. It finds fewer links, takes longer, and each link it
+              reports is one it read.
+            </p>
+            <p>
+              <b>Traffic comes back as reach.</b> Without a CapSolver key,
+              get_traffic returns confirmed backlinks, referring domains and
+              indexed pages. The visit count is missing, and the response says
+              so.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <div class="band">
+        <div class="wrap">
+          <h2>Install</h2>
+          <p class="sub">
+            One command, and the package ships ready to run. It needs Bun 1.3 or
+            newer.
+          </p>
+          <div class="cmd">
+            <span class="caret">$</span>
+            <span id="install-cmd">bunx @qexle/seo-mcp@0.3.0</span>
+            <button type="button" data-copy="bunx @qexle/seo-mcp@0.3.0">
+              copy
+            </button>
+          </div>
+
+          <div class="clients">
+            <div class="client">
+              <h3>claude code</h3>
+              <pre>
+claude mcp add seo-radar \
+  -- bunx @qexle/seo-mcp@0.3.0</pre>
+            </div>
+            <div class="client">
+              <h3>opencode</h3>
+              <pre>
+opencode mcp add seo-radar \
+  -- bunx @qexle/seo-mcp@0.3.0</pre>
+            </div>
+            <div class="client">
+              <h3>claude desktop</h3>
+              <pre>
+{
+  "mcpServers": {
+    "seo-radar": {
+      "command": "bunx",
+      "args": ["@qexle/seo-mcp@0.3.0"]
+    }
+  }
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap">
+        <section>
+          <h2>Where the data comes from</h2>
+          <p class="sub">
+            Nine public endpoints. A CapSolver key is optional and only adds the
+            Ahrefs path.
+          </p>
+          <table class="sources">
+            <tbody>
+              <tr>
+                <td>google suggest</td>
+                <td>keyword candidates</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>bing autosuggest</td>
+                <td>keyword candidates</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>duckduckgo autocomplete</td>
+                <td>keyword candidates</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>google trends daily feed</td>
+                <td>trending searches</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>wikipedia top pageviews</td>
+                <td>trending topics</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>duckduckgo lite</td>
+                <td>result pages, link discovery</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>bing web and news feeds</td>
+                <td>result page fallback, news</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>google news feed</td>
+                <td>news pack</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>page read</td>
+                <td>audits, link confirmation</td>
+                <td>no key</td>
+              </tr>
+              <tr>
+                <td>pagespeed insights</td>
+                <td>core web vitals</td>
+                <td>quota limited</td>
+              </tr>
+              <tr>
+                <td>ahrefs free tool</td>
+                <td>backlinks, ideas, difficulty, traffic</td>
+                <td>capsolver key</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <footer>
+          <span>SEO Radar MCP · MIT</span>
+          <span
+            >published as
+            <a href="https://www.npmjs.com/package/@qexle/seo-mcp"
+              >@qexle/seo-mcp</a
+            ></span
+          >
+          <span
+            >companion:
+            <a href="https://www.npmjs.com/package/@qexle/qany">@qexle/qany</a>
+            for web search and page reading</span
+          >
+        </footer>
+      </div>
+    </main>
+
+    <script>
+      for (const button of document.querySelectorAll("button[data-copy]")) {
+        button.addEventListener("click", async () => {
+          const value = button.getAttribute("data-copy") ?? "";
+          try {
+            await navigator.clipboard.writeText(value);
+            button.textContent = "copied";
+          } catch {
+            button.textContent = "press ctrl+c";
+          }
+          setTimeout(() => {
+            button.textContent = "copy";
+          }, 1600);
+        });
+      }
+    </script>
+  </body>
+</html>

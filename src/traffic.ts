@@ -1,5 +1,7 @@
 import { isArray, isRecord, numberValue, type JsonObject } from "./json.ts";
 
+const TRAFFIC_FETCH_TIMEOUT_MS = 30_000;
+
 export async function checkTraffic(
   token: string,
   domainOrUrl: string,
@@ -24,6 +26,7 @@ export async function checkTraffic(
           "content-type": "application/json",
           referer: `https://ahrefs.com/traffic-checker/?input=${domainOrUrl}&mode=${mode}`,
         },
+        signal: AbortSignal.timeout(TRAFFIC_FETCH_TIMEOUT_MS),
       },
     );
     if (response.status !== 200) return null;

@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Tests
+        # The suite runs with coverage and the gate fails the run when a file
+        # loses a line. The command lives in package.json so the local run and
+        # the CI run grade the same way.
+        run: bun run test
+      - name: Type check
+        run: bun run typecheck
+      - name: Build
+        run: bun run build
+      - name: Smoke test the published entry point
+        run: |
+          bun dist/index.js --version
+          bun dist/index.js --help
+      - name: Check the skill copy in sync
+        run: |
+          diff skills/seo-radar/SKILL.md .agents/skills/seo-radar/SKILL.md
+          diff skills/seo-radar/SKILL.md .claude/skills/seo-radar/SKILL.md

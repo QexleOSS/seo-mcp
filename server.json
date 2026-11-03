@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.1QEXLE/seo-mcp",
+  "title": "SEO Radar MCP",
+  "description": "Live search-market telemetry for agents: trends, keyword demand, SERP snapshots, audits.",
+  "websiteUrl": "https://github.com/1QEXLE/seo-mcp",
+  "repository": {
+    "url": "https://github.com/1QEXLE/seo-mcp",
+    "source": "github"
+  },
+  "version": "0.3.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@qexle/seo-mcp",
+      "version": "0.3.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "bunx",
+      "environmentVariables": [
+        {
+          "name": "CAPSOLVER_API_KEY",
+          "description": "Optional. Adds the Ahrefs path to the backlink and traffic tools",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "tool": "qexle-publisher",
+      "version": "1.0.0"
+    }
+  }
+}
