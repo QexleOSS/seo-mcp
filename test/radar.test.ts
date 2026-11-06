@@ -103,6 +103,23 @@ describe("radar", () => {
     expect(markdown).toContain("Result page source: rightdao.");
   });
 
+  test("leaves rank, engines, and silent endpoints blank when the tools omit them", async () => {
+    const markdown = await buildRadar(
+      { niche: "seo audit", limit: 5 },
+      fakeTools({
+        keywordResearch: async () =>
+          toolResult({
+            source: "autocomplete",
+            note: "Autocomplete shows what people type.",
+            candidates: [{ keyword: "seo audit", intent: "informational" }],
+          }),
+        serpSnapshot: async () => toolResult({ ...SERP, endpoints_silent: [] }),
+      }),
+    );
+    expect(markdown).toContain("| seo audit | informational | - | - |");
+    expect(markdown).not.toContain("endpoints that stayed silent");
+  });
+
   test("says so when no endpoint returned a result page", async () => {
     const markdown = await buildRadar(
       { niche: "technical seo audit", limit: 5 },

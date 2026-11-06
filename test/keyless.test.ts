@@ -1,5 +1,12 @@
 import { describe, expect, test as bunTest } from "bun:test";
-import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   auditUrl,
@@ -597,6 +604,19 @@ describe("serp", () => {
     restoreFetch();
   });
 
+  test("says so when no endpoint returns a result page", async () => {
+    mockRoutes([]);
+    const snapshot = await getSerpSnapshot("zzzz no such query", {
+      now: new Date("2026-10-21T00:00:00Z"),
+    });
+    expect(snapshot.endpoint).toBe("none");
+    expect(snapshot.results).toHaveLength(0);
+    expect(snapshot.note).toBe(
+      "No public endpoint returned a page about this query, so there is no competition read.",
+    );
+    restoreFetch();
+  });
+
   test("reads organic results from the duckduckgo lite page", async () => {
     mockRoutes([{ match: "lite.duckduckgo.com", body: DDG_LITE }]);
     const search = await fetchOrganic("seo tools");
@@ -808,6 +828,15 @@ describe("audit", () => {
     expect(facts.wordCount).toBeGreaterThan(300);
   });
 
+  test("reads a page with a bare meta tag and no canonical link", () => {
+    const facts = extractPageFacts(
+      `<html><head><meta charset="utf-8"><title>Bare page</title></head><body><p>hi</p></body></html>`,
+    );
+    expect(facts.canonical).toBe("");
+    expect(facts.viewport).toBe(false);
+    expect(facts.ogTitle).toBe(false);
+  });
+
   test("builds checks and a score", () => {
     const facts = extractPageFacts(PAGE_HTML);
     const checks = buildChecks(facts, true, 900);
@@ -920,6 +949,21 @@ describe("package version", () => {
     ) as { version: string };
     expect(readVersion()).toBe(manifest.version);
     expect(readVersion("/nowhere/at/all")).toBe("0.0.0");
+  });
+
+  test("falls back when the manifest has no version string", async () => {
+    const { readVersion } = await import("../src/server.ts");
+    const root = mkdtempSync(join(tmpdir(), "seo-version-"));
+    mkdirSync(join(root, "app"));
+    writeFileSync(
+      join(root, "package.json"),
+      JSON.stringify({ name: "no-version" }),
+    );
+    try {
+      expect(readVersion(join(root, "app"))).toBe("0.0.0");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 
